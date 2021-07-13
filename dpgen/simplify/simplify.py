@@ -23,7 +23,7 @@ from dpgen import dlog
 from dpgen import SHORT_CMD
 from dpgen.util import sepline
 from dpgen.remote.decide_machine import decide_train_machine
-from dpgen.dispatcher.Dispatcher import Dispatcher, make_dispatcher
+from dpgen.dispatcher.Dispatcher import Dispatcher, make_dispatcher, make_submission
 from dpgen.generator.run import make_train, run_train, post_train, run_fp, post_fp, fp_name, model_devi_name, train_name, train_task_fmt, sys_link_fp_vasp_pp, make_fp_vasp_incar, make_fp_vasp_kp, make_fp_vasp_cp_cvasp, data_system_fmt, model_devi_task_fmt, fp_task_fmt
 # TODO: maybe the following functions can be moved to dpgen.util
 from dpgen.generator.lib.utils import log_iter, make_iter_name, create_path, record_iter
@@ -269,17 +269,29 @@ def run_model_devi(iter_index, jdata, mdata):
     forward_files = [rest_data_name]
     backward_files = sum([[pf+".e.out", pf+".f.out", pf+".v.out"] for pf in detail_file_names], [])
 
-    dispatcher = make_dispatcher(mdata['model_devi_machine'], mdata['model_devi_resources'], work_path, run_tasks, model_devi_group_size)
-    dispatcher.run_jobs(mdata['model_devi_resources'],
-                        commands,
-                        work_path,
-                        run_tasks,
-                        model_devi_group_size,
-                        model_names,
-                        forward_files,
-                        backward_files,
-                        outlog='model_devi.log',
-                        errlog='model_devi.log')
+    # dispatcher = make_dispatcher(mdata['model_devi_machine'], mdata['model_devi_resources'], work_path, run_tasks, model_devi_group_size)
+    submissions = make_submission(mdata['model_devi_machine'],
+                                  mdata['model_devi_resources'],
+                                  commands,
+                                  work_path,
+                                  run_tasks, model_devi_group_size,
+                                  forward_common_files=model_names,
+                                  forward_files=forward_files, backward_files=backward_files,
+                                  outlog='model_devi.log',
+                                  errlog='model_devi.log')
+    # dispatcher.run_jobs(mdata['model_devi_resources'],
+    #                     commands,
+    #                     work_path,
+    #                     run_tasks,
+    #                     model_devi_group_size,
+    #                     model_names,
+    #                     forward_files,
+    #                     backward_files,
+    #                     outlog='model_devi.log',
+    #                     errlog='model_devi.log')
+    submissions.run_submission()
+
+
 
 
 def post_model_devi(iter_index, jdata, mdata):

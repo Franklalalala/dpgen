@@ -10,14 +10,14 @@ class SSHSession (object) :
         self.remote_profile = jdata
         # with open(remote_profile) as fp :
         #     self.remote_profile = json.load(fp)
-        self.remote_host = self.remote_profile['hostname']
-        self.remote_uname = self.remote_profile['username']
-        self.remote_port = self.remote_profile.get('port', 22)
-        self.remote_password = self.remote_profile.get('password', None)
+        self.remote_host = self.remote_profile["remote_profile"]['hostname']
+        self.remote_uname = self.remote_profile["remote_profile"]['username']
+        self.remote_port = self.remote_profile["remote_profile"].get('port', 22)
+        self.remote_password = self.remote_profile["remote_profile"].get('password', None)
         self.local_key_filename = self.remote_profile.get('key_filename', None)
         self.remote_timeout = self.remote_profile.get('timeout', None)
         self.local_key_passphrase = self.remote_profile.get('passphrase', None)
-        self.remote_workpath = self.remote_profile['work_path']
+        self.remote_workpath = self.remote_profile['remote_root']
         self.ssh = None
         self._setup_ssh(hostname=self.remote_host,
                         port=self.remote_port,
