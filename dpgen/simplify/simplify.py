@@ -22,14 +22,11 @@ import numpy as np
 from dpgen import dlog
 from dpgen import SHORT_CMD
 from dpgen.util import sepline
-from dpgen.remote.decide_machine import decide_train_machine
-from dpgen.dispatcher.Dispatcher import Dispatcher, make_dispatcher, make_submission
+from dpgen.dispatcher.Dispatcher import Dispatcher, make_dispatcher
 from dpgen.generator.run import make_train, run_train, post_train, run_fp, post_fp, fp_name, model_devi_name, train_name, train_task_fmt, sys_link_fp_vasp_pp, make_fp_vasp_incar, make_fp_vasp_kp, make_fp_vasp_cp_cvasp, data_system_fmt, model_devi_task_fmt, fp_task_fmt
 # TODO: maybe the following functions can be moved to dpgen.util
 from dpgen.generator.lib.utils import log_iter, make_iter_name, create_path, record_iter
-from dpgen.remote.decide_machine import decide_train_machine, decide_fp_machine, decide_model_devi_machine
 from dpgen.generator.lib.gaussian import make_gaussian_input
-from dpgen.generator.lib.xtb import make_xtb_input
 
 
 picked_data_name = "data.picked"
@@ -270,29 +267,17 @@ def run_model_devi(iter_index, jdata, mdata):
     forward_files = [rest_data_name]
     backward_files = sum([[pf+".e.out", pf+".f.out", pf+".v.out"] for pf in detail_file_names], [])
 
-    # dispatcher = make_dispatcher(mdata['model_devi_machine'], mdata['model_devi_resources'], work_path, run_tasks, model_devi_group_size)
-    submissions = make_submission(mdata['model_devi_machine'],
-                                  mdata['model_devi_resources'],
-                                  commands,
-                                  work_path,
-                                  run_tasks, model_devi_group_size,
-                                  forward_common_files=model_names,
-                                  forward_files=forward_files, backward_files=backward_files,
-                                  outlog='model_devi.log',
-                                  errlog='model_devi.log')
-    # dispatcher.run_jobs(mdata['model_devi_resources'],
-    #                     commands,
-    #                     work_path,
-    #                     run_tasks,
-    #                     model_devi_group_size,
-    #                     model_names,
-    #                     forward_files,
-    #                     backward_files,
-    #                     outlog='model_devi.log',
-    #                     errlog='model_devi.log')
-    submissions.run_submission()
-
-
+    dispatcher = make_dispatcher(mdata['model_devi_machine'], mdata['model_devi_resources'], work_path, run_tasks, model_devi_group_size)
+    dispatcher.run_jobs(mdata['model_devi_resources'],
+                        commands,
+                        work_path,
+                        run_tasks,
+                        model_devi_group_size,
+                        model_names,
+                        forward_files,
+                        backward_files,
+                        outlog='model_devi.log',
+                        errlog='model_devi.log')
 
 
 def post_model_devi(iter_index, jdata, mdata):
@@ -513,18 +498,6 @@ def make_fp_configs(iter_index, jdata):
                     json.dump(job, fp, indent=4)
                 jj += 1
 
-def make_fp_xtb(iter_index, jdata):
-    work_path = os.path.join(make_iter_name(iter_index), fp_name)
-    fp_tasks = glob.glob(os.path.join(work_path, 'task.*'))
-    cwd = os.getcwd()
-    for ii in fp_tasks:
-        os.chdir(ii)
-        sys_data = dpdata.System('POSCAR').data
-        ret = make_xtb_input(sys_data)
-        with open('input.xyz', 'w') as fp:
-            fp.write(ret)
-        os.chdir(cwd)
-
 
 def make_fp_gaussian(iter_index, jdata):
     work_path = os.path.join(make_iter_name(iter_index), fp_name)
@@ -570,8 +543,6 @@ def make_fp_calculation(iter_index, jdata):
         make_fp_vasp(iter_index, jdata)
     elif fp_style == 'gaussian':
         make_fp_gaussian(iter_index, jdata)
-    elif fp_style == "xtb":
-        make_fp_xtb(iter_index,jdata)
     else :
         raise RuntimeError('unsupported fp_style ' + fp_style)
 
@@ -630,7 +601,8 @@ def run_iter(param_file, machine_file):
             listener = logging.handlers.QueueListener(que, smtp_handler)
             dlog.addHandler(queue_handler)
             listener.start()
-
+            
+    mdata = convert_mdata(mdata)
     max_tasks = 10000
     numb_task = 9
     record = "record.dpgen"
@@ -665,7 +637,6 @@ def run_iter(param_file, machine_file):
                 make_train(ii, jdata, mdata)
             elif jj == 1:
                 log_iter("run_train", ii, jj)
-                mdata = decide_train_machine(mdata)
                 #disp = make_dispatcher(mdata['train_machine'])
                 run_train(ii, jdata, mdata)
             elif jj == 2:
@@ -678,7 +649,6 @@ def run_iter(param_file, machine_file):
                     break
             elif jj == 4:
                 log_iter("run_model_devi", ii, jj)
-                mdata = decide_model_devi_machine(mdata)
                 #disp = make_dispatcher(mdata['model_devi_machine'])
                 run_model_devi(ii, jdata, mdata)
             elif jj == 5:
@@ -692,7 +662,6 @@ def run_iter(param_file, machine_file):
                 if jdata.get("labeled", False):
                     dlog.info("already have labeled data, skip run_fp")
                 else:
-                    mdata = decide_fp_machine(mdata)
                     #disp = make_dispatcher(mdata['fp_machine'])
                     run_fp(ii, jdata, mdata)
             elif jj == 8:
